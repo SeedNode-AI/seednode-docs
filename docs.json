@@ -1,72 +1,85 @@
 {
   "$schema": "https://mintlify.com/docs.json",
   "theme": "mint",
-  "name": "Mintlify Starter Kit",
+  "name": "SeedNode",
+  "description": "SeedNode Ring — an on-chain reputation ring computed by AI, anchored on-chain, and fully owned by the user.",
   "colors": {
-    "primary": "#16A34A",
-    "light": "#07C983",
-    "dark": "#15803D"
+    "primary": "#5C9A3D",
+    "light": "#A6E86B",
+    "dark": "#5C9A3D"
   },
-  "favicon": "/favicon.svg",
-  "navigation": {
-    "pages": [
-      {
-        "group": "Getting Started",
-        "pages": [
-          "index",
-          "quickstart"
-        ]
-      }
-    ],
-    "global": {
-      "anchors": [
-        {
-          "anchor": "Documentation",
-          "href": "https://mintlify.com/docs",
-          "icon": "book-open-cover"
-        },
-        {
-          "anchor": "Blog",
-          "href": "https://mintlify.com/blog",
-          "icon": "newspaper"
-        }
-      ]
-    }
+  "favicon": {
+    "light": "/logo/logo.png",
+    "dark": "/logo/logo.png"
   },
   "logo": {
-    "light": "/logo/light.svg",
-    "dark": "/logo/dark.svg"
+    "light": "/logo/logo.png",
+    "dark": "/logo/logo.png",
+    "href": "https://seednode.ai"
   },
   "navbar": {
     "links": [
       {
-        "label": "Support",
-        "href": "mailto:support@mintlify.com"
+        "label": "SeedNode.ai",
+        "href": "https://seednode.ai"
       }
     ],
     "primary": {
       "type": "button",
-      "label": "Dashboard",
-      "href": "https://app.mintlify.com"
+      "label": "Launch App",
+      "href": "https://seednode-passport-web.vercel.app"
     }
-  },
-  "contextual": {
-    "options": [
-      "copy",
-      "view",
-      "chatgpt",
-      "claude",
-      "perplexity",
-      "mcp",
-      "cursor",
-      "vscode"
-    ]
   },
   "footer": {
     "socials": {
-      "x": "https://x.com/mintlify",
-      "github": "https://github.com/mintlify",
-      "linkedin": "https://linkedin.com/company/mintlify"
+      "x": "https://x.com/SeedNode_AI"
     }
+  },
+  "navigation": {
+    "languages": [
+      {
+        "language": "en",
+        "default": true,
+        "groups": [
+          {
+            "group": "SeedNode Ring Whitepaper V1",
+            "pages": [
+              "index",
+              "lifecycle",
+              "architecture",
+              "growth",
+              "commercialization",
+              "competitive",
+              "tokenomics",
+              "risk-compliance",
+              "roadmap",
+              "closing",
+              "appendix-a"
+            ]
+          }
+        ]
+      },
+      {
+        "language": "zh",
+        "groups": [
+          {
+            "group": "SeedNode Ring 白皮书 V1",
+            "pages": [
+              "zh/index",
+              "zh/lifecycle",
+              "zh/architecture",
+              "zh/growth",
+              "zh/commercialization",
+              "zh/competitive",
+              "zh/tokenomics",
+              "zh/risk-compliance",
+              "zh/roadmap",
+              "zh/closing",
+              "zh/appendix-a"
+            ]
+          }
+        ]
+      }
+    ]
   }
 }

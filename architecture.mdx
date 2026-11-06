@@ -1,0 +1,36 @@
+---
+title: "Technical Architecture"
+description: "Data indexing, scoring engine, LLM interpretation, on-chain credentials"
+---
+
+## 3.1 Data Indexing Layer
+
+Built on existing infrastructure — Covalent / GoldRush, Moralis, Alchemy, The Graph, Dune Analytics — to fetch address-level public data across chains (balances, transactions, protocol interactions, NFTs, staking and lending records). V1 prioritizes Ethereum, Base, and Solana, the highest-density chains. No custom indexer — keeping early engineering and ops cost minimal.
+
+## 3.2 Scoring Engine: Rules + Lightweight ML
+
+**Transparent weighted rules:** wallet age, transaction breadth and depth, protocol diversity, staking and liquidity history, asset distribution — users can see exactly why they got their score. No black box.
+
+**Lightweight machine learning:** small models (XGBoost / LightGBM) for anomaly detection — catching score farming, sybil attacks, and bot clusters that rule-based scoring alone can be gamed around. Training and inference need no GPU; an ordinary cloud server suffices. This is where "AI" earns its place rather than being a label.
+
+## 3.3 Optional LLM Interpretation Layer
+
+Off-the-shelf large language models via API (not self-hosted, not self-trained) turn scores into plain-language readings — e.g., "You're a long-term active DeFi participant who favors conservative lending and rarely touches speculative tokens." Pay-per-call, low marginal cost, swappable for cheaper open-source models at any time.
+
+## 3.4 On-Chain Credentials & Validators: An Honest Trust Assumption
+
+Rings are issued as soulbound tokens / verifiable credentials, written to the user's address — non-transferable, non-sellable.
+
+In V1, scores are co-signed and anchored by a small set of publicly identified, reputationally accountable signers (initially the team itself, later 1–2 trusted partners). We state the current trust assumption plainly — no pretending to be "fully decentralized" — and expand toward a stake-based validator network on the roadmap. We deliberately do not use an "anyone can run a node" model (see [Appendix A](/appendix-a)).
+
+## 3.5 Cost Structure (V1 Estimate)
+
+Total V1 operating cost stays in the hundreds of dollars per month — the core hypothesis can be validated without external funding.
+
+| Module | Stack | Cost Level |
+|---|---|---|
+| On-chain data indexing | Covalent / Moralis / Alchemy / The Graph APIs | Usage-based; free tiers cover the MVP |
+| Scoring engine | XGBoost / LightGBM on an ordinary cloud server | Tens to hundreds of USD per month |
+| LLM interpretation | Pay-per-call third-party APIs; open-source optional | Usage-based, low marginal cost |
+| Credential issuance | Low-gas L2 (Base / Arbitrum) | Cents per issuance |
+| Validator signing | Team-held keys in V1 | 0 |
