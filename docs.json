@@ -36,48 +36,21 @@
     }
   },
   "navigation": {
-    "languages": [
+    "groups": [
       {
-        "language": "en",
-        "default": true,
-        "groups": [
-          {
-            "group": "SeedNode Ring Whitepaper V1",
-            "pages": [
-              "index",
-              "lifecycle",
-              "architecture",
-              "growth",
-              "commercialization",
-              "competitive",
-              "tokenomics",
-              "risk-compliance",
-              "roadmap",
-              "closing",
-              "appendix-a"
-            ]
-          }
-        ]
-      },
-      {
-        "language": "zh",
-        "groups": [
-          {
-            "group": "SeedNode Ring 白皮书 V1",
-            "pages": [
-              "zh/index",
-              "zh/lifecycle",
-              "zh/architecture",
-              "zh/growth",
-              "zh/commercialization",
-              "zh/competitive",
-              "zh/tokenomics",
-              "zh/risk-compliance",
-              "zh/roadmap",
-              "zh/closing",
-              "zh/appendix-a"
-            ]
-          }
+        "group": "SeedNode Ring Whitepaper V1",
+        "pages": [
+          "index",
+          "lifecycle",
+          "architecture",
+          "growth",
+          "commercialization",
+          "competitive",
+          "tokenomics",
+          "risk-compliance",
+          "roadmap",
+          "closing",
+          "appendix-a"
         ]
       }
     ]
