@@ -27,7 +27,7 @@
     "primary": {
       "type": "button",
       "label": "Launch App",
-      "href": "https://seednode-passport-web.vercel.app"
+      "href": "https://ring.seednode.ai"
     }
   },
   "footer": {
