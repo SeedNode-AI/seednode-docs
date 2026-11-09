@@ -4,33 +4,16 @@
 对应 `Planning/SeedNode_白皮书一致性复核_2026-11-07.html` 里的建议方案。
 
 内容是白皮书 V1 中英文两版的逐段迁移（基于 `../Whitepaper/` 里已核对一致的
-docx/pdf 定稿），不是重写。唯一的例外是 `commercialization.mdx` /
-`zh/commercialization.mdx`——这一节在白皮书 docx 定稿里是空的，内容是从配套
-Deck 的"06 — 商业化路径"页搬过来补上的，文件里用 `<Warning>` 标出来了，
-需要 Charlie 确认。
+docx/pdf 定稿），不是重写。`commercialization.mdx` / `zh/commercialization.mdx`
+这一节在白皮书 docx 定稿里原本是空的，内容是从配套 Deck 的"06 — 商业化路径"
+页搬过来补上的——2026-11-09 已经过 Charlie 确认定稿，页面里原来的编辑说明
+`<Warning>` 已经去掉（生产环境面向投资人的页面不该挂着内部待确认标记）。
 
-## 这不是 git 仓库（还不是）
+## 现状：已经是真实的 GitHub 仓库，已上线
 
-这个文件夹目前只是本地文件，还没有 `git init`。按项目协作分工（Cowork 做
-方案/文案，Code 做代码/git/部署），把这个文件夹变成可以被 Mintlify
-部署的 GitHub 仓库这一步，建议交给 Code 窗口做：
-
-1. `cd` 进这个文件夹，`git init`，`git add -A`，提交一次初始版本。
-2. 在 `SeedNode-AI` 这个 GitHub 组织下建一个新仓库（建议叫
-   `seednode-docs`，和主仓库 `SeedNode-AI/SeedNode` 分开，避免跟
-   `apps/web` 的 Vercel 部署、pnpm workspace 产生任何耦合）。
-3. push 上去。
-
-## 需要 Charlie 自己做的事（没法由 Claude 代劳）
-
-1. 去 mintlify.com 注册账号（免费 Starter 档即可，已核实含自定义域名）。
-2. 在 Mintlify 后台用 GitHub 账号连接刚才新建的 `seednode-docs` 仓库——
-   连上之后 Mintlify 会自动检测根目录的 `docs.json` 并部署，网站立刻可访问
-   （先是一个 mintlify.app 的临时域名）。
-3. 在 Mintlify 后台的 Custom Domain 设置里填 `docs.seednode.ai`，
-   它会给一条 CNAME 记录，照着在你的域名服务商（Cloudflare/Namecheap等，
-   取决于 seednode.ai 的 DNS 托管在哪）里加一条 CNAME 解析记录。
-4. 等 DNS 生效（通常几分钟到几小时），`docs.seednode.ai` 就是最终地址。
+这个仓库已经 push 到 `SeedNode-AI/seednode-docs`，接了 Mintlify 自动部署，
+正式域名是 `docs.seednode.ai`。对 `main` 分支的任何提交都会自动触发
+Mintlify 重新构建发布，不需要额外的部署步骤。
 
 ## 本地校验
 
