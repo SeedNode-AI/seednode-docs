@@ -5,13 +5,13 @@ description: "Data indexing, scoring engine, LLM interpretation, on-chain creden
 
 ## 3.1 Data Indexing Layer
 
-Built on existing infrastructure — Covalent / GoldRush, Moralis, Alchemy, The Graph, Dune Analytics — to fetch address-level public data across chains (balances, transactions, protocol interactions, NFTs, staking and lending records). V1 prioritizes Ethereum, Base, and Solana, the highest-density chains. No custom indexer — keeping early engineering and ops cost minimal.
+Built on existing infrastructure — Covalent / GoldRush, Moralis, Alchemy, The Graph, Dune Analytics — to fetch address-level public data across chains (balances, transactions, protocol interactions, NFTs, staking and lending records). V1 prioritizes Ethereum, Base, and Solana, the highest-density chains. No custom indexer — keeping early engineering and ops cost minimal. In practice V1 ships EVM-only (Ethereum, Base, Arbitrum, Polygon); Solana support is a V1.1 fast-follow (separate SVM data adapter).
 
 ## 3.2 Scoring Engine: Rules + Lightweight ML
 
 **Transparent weighted rules:** wallet age, transaction breadth and depth, protocol diversity, staking and liquidity history, asset distribution — users can see exactly why they got their score. No black box.
 
-**Lightweight machine learning:** small models (XGBoost / LightGBM) for anomaly detection — catching score farming, sybil attacks, and bot clusters that rule-based scoring alone can be gamed around. Training and inference need no GPU; an ordinary cloud server suffices. This is where "AI" earns its place rather than being a label.
+**Lightweight machine learning:** small models (XGBoost / LightGBM) for anomaly detection — catching score farming, sybil attacks, and bot clusters that rule-based scoring alone can be gamed around. Training and inference need no GPU; an ordinary cloud server suffices. This is where "AI" earns its place rather than being a label. (Roadmap — not yet active in the live V1 scoring engine, which ships rules-only; this layer activates once there's a real, labeled population of scores to train against.)
 
 ## 3.3 Optional LLM Interpretation Layer
 
