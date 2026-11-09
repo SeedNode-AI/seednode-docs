@@ -52,6 +52,12 @@
           "closing",
           "appendix-a"
         ]
+      },
+      {
+        "group": "Developers",
+        "pages": [
+          "api"
+        ]
       }
     ]
   }

@@ -1,0 +1,152 @@
+---
+title: "评分 API"
+description: "通过 HTTP 读取钱包的 SeedNode Ring 分数——请求格式、返回字段、限流规则与申请 API key 的方式"
+---
+
+SeedNode 评分 API 是一个公开、只读的 HTTP 接口。给它一个钱包地址，它返回 Ring 分数、档位、透明的分数构成，以及这个结果有多可信。不需要签名，也不需要连接钱包——它只读取公开的链上历史。
+
+## 快速开始
+
+```bash
+curl -H "X-API-Key: $SEEDNODE_API_KEY" \
+  "https://api.seednode.ai/v1/score/0xfD22004806A6846EA67ad883356be810F0428793"
+```
+
+- **Base URL：** `https://api.seednode.ai`
+- **读取的链：** Ethereum、Arbitrum、Polygon、Base（V1 仅 EVM）。
+- **格式：** HTTPS 上的 JSON。CORS 已放开，可以直接在浏览器里调用。
+
+<Warning>
+  **请把超时设长。** 结果按地址缓存 1 小时，但*冷请求*（该地址一小时内第一次被查询）要读取完整的链上历史，活跃钱包可能需要**几十秒**。我们实测非常活跃的钱包冷请求大约 12–37 秒（监控里见过约 55 秒）；活跃度低或已缓存的地址几秒内返回。客户端超时请至少设 90 秒，等待期间不要反复重试——重试也会计入你的限流额度。
+</Warning>
+
+## `GET /v1/score/{address}`
+
+| 参数 | 位置 | 必填 | 说明 |
+|---|---|---|---|
+| `address` | 路径 | 是 | EVM 地址，`0x` + 40 位十六进制（大小写均可） |
+| `version` | 查询串 | 否 | 公式版本。默认当前生效版本（目前是 `1.0.0`）。已发布的版本不可修改，详见 `GET /v1/formula/{version}`。传未知版本会返回 `400 unknown_formula_version` |
+| `X-API-Key` | 请求头 | 否 | 你的 API key，也接受 `Authorization: Bearer <key>`。不带 key 则按匿名调用方限流 |
+
+### 返回体
+
+一个长期活跃钱包的真实返回（`weights`、`thresholds`、`components`、`profile`、`coverage.details` 在这里做了省略）：
+
+```json
+{
+  "address": "0xfd22004806a6846ea67ad883356be810f0428793",
+  "score": 92.8,
+  "tier": "Old Growth",
+  "breakdown": {
+    "formulaVersion": "1.0.0",
+    "dimensions": { "time": 98.17, "breadth": 80, "depth": 100, "assets": 100 },
+    "weights": { "time": 0.33, "breadth": 0.33, "depth": 0.08, "assets": 0.26 },
+    "thresholds": { "k_age": 1095, "k_months": 24, "k_contracts": 150, "...": "..." },
+    "components": { "agePart": 100, "monthPart": 100, "persistPart": 92.68, "...": "..." }
+  },
+  "breakdownHash": "0x2f2c05339497c56ecc3838020736a9c8ebd7c320c7f3c1902490be086c2c4b72",
+  "unreliable": false,
+  "unreliableReasons": [],
+  "riskFlags": [],
+  "confidence": 1,
+  "confidenceLevel": "high",
+  "confidenceFactors": [],
+  "coverage": {
+    "chains": ["ethereum", "arbitrum", "polygon", "base"],
+    "failedChains": [],
+    "degradedChains": [],
+    "totalChains": 4,
+    "dataSources": ["alchemy"],
+    "details": [{ "chainId": 1, "chain": "ethereum", "status": "ok" }, "..."]
+  },
+  "badges": ["…"],
+  "nonHuman": { "isNonHuman": false, "reasons": ["skipped:too-many-undetermined"], "scoreCap": null },
+  "profile": { "ageDays": 2003.4, "activeMonths": 61, "txCount": 3669, "protocolTxCount": 1159, "contracts": 355, "chainsActive": 4, "...": "..." },
+  "snapshotMeta": {
+    "takenAt": "2026-11-09T16:54:24.056Z",
+    "formulaVersion": "1.0.0",
+    "pipelineVersion": "1.6.0",
+    "blockHeights": { "1": 26378656, "137": 97025202, "8453": 55264422, "42161": 522735210 }
+  }
+}
+```
+
+字段含义：
+
+| 字段 | 含义 |
+|---|---|
+| `address` | 被评分的地址（小写） |
+| `score` | 0–100，保留一位小数 |
+| `tier` | `Seed` < `Sapling` < `Canopy` < `Old Growth`（档位线是绝对值：公式 `1.0.0` 为 52 / 71.8 / 91.7） |
+| `breakdown` | 完整、透明的分数解释：四个维度（`time`、`breadth`、`depth`、`assets`），各自的权重、阈值和子项得分。任何人都能用 `profile` + `breakdown.formulaVersion` 复现这个分数 |
+| `breakdownHash` | 分数构成的哈希（铸造 Ring 时上链的就是它），**不包含地址** |
+| `unreliable` / `unreliableReasons` | **二元闸门。** `true` 表示数据不完整（比如某条链读取失败、历史被截断，或该地址没有任何链上活动）。此时应视为**分数未经认证**，不要用于需要可信分数的决策 |
+| `riskFlags` | 仅用于展示的标签。只有当地址**本身**精确命中某份权威名单（目前是美国 OFAC SDN 名单）时才会出现；`[]` 表示未命中。它**绝不改变** `score`、`tier`、`breakdownHash`，也不代表对该地址的任何评判，只是"这个地址在那份名单上"。每个标签：`{ label: "sanctioned" \| "known-exploiter", source, dateAdded }` |
+| `confidence` | 0–1。这次结果有多可信，由数据完整度推出 |
+| `confidenceLevel` | `high`（≥ 0.85）、`medium`（≥ 0.6）、`low` |
+| `confidenceFactors` | confidence 为什么低于 1：每个因子 `{ code, multiplier, detail }`，`confidence` 是它们的乘积；空数组表示没有扣分。code：`chain-coverage`、`truncated`、`data-quality`、`hit-limit`、`zero-activity`（仅说明）、`unreliable-cap` |
+| `coverage` | 这次实际读了什么：`chains`（成功读取的链——该地址在某条链上没有活动也算读取成功）、`failedChains`、`degradedChains`（链读到了，但合约调用解码不完整）、`dataSources`，以及逐链的 `details` |
+| `badges` | 描述性标签。**目前返回的是中文字符串**，请当作不透明的展示标签使用 |
+| `nonHuman` | 机器人/交易所钱包判定。因疑似非人类而封顶时 `scoreCap` 是数字，否则为 `null` |
+| `profile` | 计算分数所用的原始测量输入（笔数、年龄、活跃链数等） |
+| `snapshotMeta` | 数据读取时间、所用的公式/流水线版本，以及每条链读取到的区块高度 |
+
+`confidence` 和 `coverage` 只是元数据，绝不改变 `score`、`tier`、`breakdownHash` 或 `unreliable`。
+
+<Note>
+  一个全新、没有任何交易的地址会得到 `unreliable: true`（因此 `confidence` 上限 0.5）：闸门不区分"没有数据"和"读取失败"，而返回 0 分会被误当成一个真实测得的结论。可以看 `coverage.failedChains` 判断它是不是真的空地址（所有链读取成功、没有失败）。
+</Note>
+
+## 认证
+
+认证是可选的。
+
+- **不带 key：** 可以用，按匿名调用方限流（**每个 IP 每分钟 20 次**），适合试用。
+- **带 key：** 发送 `X-API-Key: <key>`（或 `Authorization: Bearer <key>`）。请求**按 key 计数**而不是按 IP，所以你的服务器 IP 变了也不影响额度。默认**每个 key 每分钟 60 次**，需要更高额度可以申请。
+- 格式不对、不存在或已吊销的 key 会直接返回 `401`——**不会**悄悄降级成匿名，方便你第一时间发现问题。
+
+请把 key 放在服务端。不要把 key 放进公开网页或手机 App，那样任何人都能读到。
+
+## 限流与缓存
+
+| 调用方 | 限额 |
+|---|---|
+| 匿名 | 每 IP 每分钟 20 次 |
+| API key | 每 key 每分钟 60 次（默认，可按 key 调整） |
+
+成功（`200`）和被限流（`429`）的响应带 `x-ratelimit-limit`、`x-ratelimit-remaining`、`x-ratelimit-reset`（秒），`429` 还会带 `retry-after`。（`401`/`503` 在限流之前就返回，不带这些头，也不占额度。）超限返回 `429`，等窗口重置后再试。浏览器里的跨域调用方也能读到这些头（已通过 CORS 暴露）。
+
+分数按"地址 + 公式版本"缓存 **1 小时**。命中缓存的请求立即返回，但同样计入限流；`snapshotMeta.takenAt` 告诉你数据实际是什么时候读取的。
+
+## 错误
+
+| 状态码 | 响应体 | 含义 |
+|---|---|---|
+| `400` | `{ "error": "…" }` | 地址格式非法；或 `version` 未知时返回 `{ "error": "unknown_formula_version", … }` |
+| `401` | `{ "error": "invalid_api_key", "message": "…" }` | key 格式不对、不存在或已吊销 |
+| `429` | `{ "statusCode": 429, "error": "Too Many Requests", "message": "…" }` | 超出限流 |
+| `503` | `{ "error": "api_key_backend_unavailable", … }` | 暂时性问题：key 校验暂不可用，请稍后重试 |
+| `5xx` | — | 上游或服务端的暂时性问题。如果只读到了*一部分*数据，你拿到的仍是 `200`——这种情况由 `unreliable: true`、`coverage.failedChains` 和较低的 `confidence` 表示，请检查这些字段，不要默认分数一定完整 |
+
+## 申请 API key
+
+早期开放阶段，API key 由人工签发。申请请通过 [X 上的 @SeedNode_AI](https://x.com/SeedNode_AI) 私信我们，并说明：
+
+1. 你的项目或公司名称
+2. 联系方式（邮箱或账号）
+3. 用分数做什么，以及预计的调用量
+
+key 可随时吊销，吊销约一分钟内全部生效。
+
+<Note>
+  自由文本字段（`error`/`message` 文案、`unreliableReasons`、`confidenceFactors[].detail`、`badges`）目前是中文或中英混合，措辞可能调整。请基于稳定字段写逻辑：HTTP 状态码、`invalid_api_key` 这类 `error` 代码、`unreliable`、`confidenceFactors[].code`、`coverage.*`、`riskFlags[].label`。
+</Note>
+
+## 相关接口
+
+| 接口 | 用途 |
+|---|---|
+| `GET /v1/formula/{version}` | 某个公式版本的完整定义（权重、阈值、档位线） |
+| `POST /v1/verify` | 用原始 profile 重算快照并比对分数与哈希——任何人不必信任我们也能验证一个分数 |
+
+API 处于早期开放阶段：字段可能会增加（但不会悄悄改变含义），已发布的公式版本永不修改。

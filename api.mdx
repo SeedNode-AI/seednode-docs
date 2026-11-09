@@ -1,0 +1,150 @@
+---
+title: "Scoring API"
+description: "Read a wallet's SeedNode Ring score over HTTP — request format, response fields, rate limits, and how to get an API key"
+---
+
+The SeedNode scoring API is a public, read-only HTTP API. Give it a wallet address; it returns the Ring score, tier, a transparent breakdown, and how much to trust the result. No signature or wallet connection is needed — it only reads public on-chain history.
+
+## Quick start
+
+```bash
+curl -H "X-API-Key: $SEEDNODE_API_KEY" \
+  "https://api.seednode.ai/v1/score/0xfD22004806A6846EA67ad883356be810F0428793"
+```
+
+- **Base URL:** `https://api.seednode.ai`
+- **Chains read:** Ethereum, Arbitrum, Polygon, Base (EVM only in V1).
+- **Format:** JSON over HTTPS. CORS is open, so it can be called from a browser.
+
+<Warning>
+  **Allow a long timeout.** Results are cached per address for 1 hour, but a *cold* request (first lookup of an address in the last hour) reads full on-chain history and can take **tens of seconds** for an active wallet. In our tests, cold requests for very active wallets took roughly 12–37 seconds (up to ~55 seconds seen in monitoring); lightly active or cached addresses return in a few seconds. Set your client timeout to at least 90 seconds, and don't retry-spam while waiting — retries count against your rate limit.
+</Warning>
+
+## `GET /v1/score/{address}`
+
+| Parameter | In | Required | Description |
+|---|---|---|---|
+| `address` | path | yes | EVM address, `0x` + 40 hex characters (any letter case) |
+| `version` | query | no | Formula version. Defaults to the active version (currently `1.0.0`). Published versions are frozen; see `GET /v1/formula/{version}`. An unknown version returns `400 unknown_formula_version` |
+| `X-API-Key` | header | no | Your API key. `Authorization: Bearer <key>` is also accepted. Without a key you are rate-limited as an anonymous caller |
+
+### Response
+
+```json
+{
+  "address": "0xfd22004806a6846ea67ad883356be810f0428793",
+  "score": 92.8,
+  "tier": "Old Growth",
+  "breakdown": {
+    "formulaVersion": "1.0.0",
+    "dimensions": { "time": 98.17, "breadth": 80, "depth": 100, "assets": 100 },
+    "weights": { "time": 0.33, "breadth": 0.33, "depth": 0.08, "assets": 0.26 },
+    "thresholds": { "k_age": 1095, "k_months": 24, "k_contracts": 150, "...": "..." },
+    "components": { "agePart": 100, "monthPart": 100, "persistPart": 92.68, "...": "..." }
+  },
+  "breakdownHash": "0x2f2c05339497c56ecc3838020736a9c8ebd7c320c7f3c1902490be086c2c4b72",
+  "unreliable": false,
+  "unreliableReasons": [],
+  "riskFlags": [],
+  "confidence": 1,
+  "confidenceLevel": "high",
+  "confidenceFactors": [],
+  "coverage": {
+    "chains": ["ethereum", "arbitrum", "polygon", "base"],
+    "failedChains": [],
+    "degradedChains": [],
+    "totalChains": 4,
+    "dataSources": ["alchemy"],
+    "details": [{ "chainId": 1, "chain": "ethereum", "status": "ok" }, "..."]
+  },
+  "badges": ["…"],
+  "nonHuman": { "isNonHuman": false, "reasons": ["skipped:too-many-undetermined"], "scoreCap": null },
+  "profile": { "ageDays": 2003.4, "activeMonths": 61, "txCount": 3669, "protocolTxCount": 1159, "contracts": 355, "chainsActive": 4, "...": "..." },
+  "snapshotMeta": {
+    "takenAt": "2026-11-09T16:54:24.056Z",
+    "formulaVersion": "1.0.0",
+    "pipelineVersion": "1.6.0",
+    "blockHeights": { "1": 26378656, "137": 97025202, "8453": 55264422, "42161": 522735210 }
+  }
+}
+```
+
+(Real response for a long-active wallet; `weights`, `thresholds`, `components`, `profile` and `coverage.details` are abbreviated here. `confidence`, `coverage` and the other metadata fields are shown for the current API version.)
+
+| Field | Meaning |
+|---|---|
+| `address` | The address scored, lower-cased |
+| `score` | 0–100, one decimal |
+| `tier` | `Seed` < `Sapling` < `Canopy` < `Old Growth` (cut-offs are absolute: 52 / 71.8 / 91.7 for formula `1.0.0`) |
+| `breakdown` | The full, transparent explanation: four dimensions (`time`, `breadth`, `depth`, `assets`), their weights and thresholds, and the sub-scores behind each. Everyone can reproduce the score from `profile` + `breakdown.formulaVersion` |
+| `breakdownHash` | Hash of the breakdown (the value anchored on-chain when a Ring is minted). It does **not** include the address |
+| `unreliable` / `unreliableReasons` | **Binary gate.** `true` means the data was incomplete (e.g. a chain failed, history was truncated, or the address has no on-chain activity). Treat the score as **not certified**; don't use it for decisions that need a trustworthy score |
+| `riskFlags` | Display-only labels. A flag appears only when the address **itself** exactly matches an authoritative list (today: the US OFAC SDN list). `[]` = no match. It **never changes** `score`, `tier` or `breakdownHash`, and it is not a judgement about the address beyond "this address is on that list". Each flag: `{ label: "sanctioned" \| "known-exploiter", source, dateAdded }` |
+| `confidence` | 0–1. How much to trust this result, derived from data completeness |
+| `confidenceLevel` | `high` (≥ 0.85), `medium` (≥ 0.6), `low` |
+| `confidenceFactors` | Why confidence is below 1: `{ code, multiplier, detail }` per factor; `confidence` is their product. Empty = nothing reduced it. Codes: `chain-coverage`, `truncated`, `data-quality`, `hit-limit`, `zero-activity` (explanatory only), `unreliable-cap` |
+| `coverage` | What was actually read: `chains` (chains read successfully — a chain on which the address has no activity still counts as read), `failedChains`, `degradedChains` (chain read, but contract-call decoding was incomplete), `dataSources`, and per-chain `details` |
+| `badges` | Descriptive labels. **Currently returned as Chinese strings**; treat them as opaque display labels |
+| `nonHuman` | Bot / exchange-wallet detection. `scoreCap` is a number when the result was capped for looking non-human, otherwise `null` |
+| `profile` | The raw measured inputs the score was computed from (counts, ages, chains active, …) |
+| `snapshotMeta` | When the data was read, which formula and pipeline versions produced it, and the block height read on each chain |
+
+`confidence` and `coverage` are metadata only. They never change `score`, `tier`, `breakdownHash` or `unreliable`.
+
+<Note>
+  A brand-new address with no transactions gets `unreliable: true` (and therefore `confidence` capped at 0.5): "no data" and "failed to read" are not told apart by the gate, and a zero score would wrongly look like a measured verdict. Check `coverage.failedChains` to see whether it is a genuinely empty address (all chains read, none failed).
+</Note>
+
+## Authentication
+
+Authentication is optional.
+
+- **No key:** works, rate-limited as an anonymous caller (**20 requests / minute per IP**). Fine for trying it out.
+- **With a key:** send `X-API-Key: <key>` (or `Authorization: Bearer <key>`). Requests are counted **per key**, not per IP, so you keep your quota when your servers' IPs change. Default **60 requests / minute per key**; higher limits are available on request.
+- A key that is malformed, unknown or revoked is rejected with `401` — it is **not** silently downgraded to anonymous, so you notice immediately.
+
+Keep keys server-side. Don't ship a key in a public web page or mobile app; anyone can read it there.
+
+## Rate limits and caching
+
+| Caller | Limit |
+|---|---|
+| Anonymous | 20 requests / minute / IP |
+| API key | 60 requests / minute / key (default; adjustable per key) |
+
+Successful (`200`) and rate-limited (`429`) responses carry `x-ratelimit-limit`, `x-ratelimit-remaining` and `x-ratelimit-reset` (seconds); a `429` also carries `retry-after`. (`401`/`503` responses are returned before rate limiting and don't carry them or use up quota.) When you exceed the limit you get `429`; wait until the window resets. Browser callers can read these headers (they're exposed via CORS).
+
+Scores are cached for **1 hour** per address and formula version. A cached hit returns immediately but still counts toward your rate limit; `snapshotMeta.takenAt` tells you when the data was actually read.
+
+## Errors
+
+| Status | Body | Meaning |
+|---|---|---|
+| `400` | `{ "error": "…" }` | Malformed address, or `{ "error": "unknown_formula_version", … }` for an unknown `version` |
+| `401` | `{ "error": "invalid_api_key", "message": "…" }` | Key malformed, unknown or revoked |
+| `429` | `{ "statusCode": 429, "error": "Too Many Requests", "message": "…" }` | Rate limit exceeded |
+| `503` | `{ "error": "api_key_backend_unavailable", … }` | Temporary: key verification is unavailable; retry shortly |
+| `5xx` | — | Temporary upstream or server problem. If only *part* of the data could be read you still get a `200` — that case is signalled by `unreliable: true`, `coverage.failedChains` and a lower `confidence`, so check those rather than assuming a score is complete |
+
+## Getting an API key
+
+API keys are issued manually while the API is in early access. To request one, message [@SeedNode_AI on X](https://x.com/SeedNode_AI) with:
+
+1. Your project or company name
+2. A contact (email or handle)
+3. What you'll use the score for, and your expected request volume
+
+Keys can be revoked at any time; revocation takes effect within about a minute.
+
+<Note>
+  Free-text fields (`error`/`message` strings, `unreliableReasons`, `confidenceFactors[].detail`, `badges`) are currently in Chinese or mixed language and may change wording. Build logic on the stable fields instead: HTTP status, `error` codes such as `invalid_api_key`, `unreliable`, `confidenceFactors[].code`, `coverage.*`, `riskFlags[].label`.
+</Note>
+
+## Related endpoints
+
+| Endpoint | Purpose |
+|---|---|
+| `GET /v1/formula/{version}` | The full definition of a formula version (weights, thresholds, tier cut-offs) |
+| `POST /v1/verify` | Recompute a snapshot from its raw profile and compare score and hash — anyone can verify a score without trusting us |
+
+The API is early-access: fields may be added over time (never silently re-purposed), and a formula version, once published, never changes.
