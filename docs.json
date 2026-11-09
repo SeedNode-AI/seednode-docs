@@ -13,8 +13,8 @@
     "dark": "/logo/logo.png"
   },
   "logo": {
-    "light": "/logo/logo.png",
-    "dark": "/logo/logo.png",
+    "light": "/logo/wordmark-light.png",
+    "dark": "/logo/wordmark-dark.png",
     "href": "https://seednode.ai"
   },
   "navbar": {
@@ -38,7 +38,7 @@
   "navigation": {
     "groups": [
       {
-        "group": "SeedNode Ring Whitepaper V1",
+        "group": "SeedNode Whitepaper V1",
         "pages": [
           "index",
           "lifecycle",
